@@ -8,7 +8,6 @@ Usage: python3 -m chatserver.data.split_long_conversation \
 """
 import argparse
 import json
-from typing import Dict, Sequence, Optional
 
 import transformers
 import tqdm
@@ -30,7 +29,8 @@ def split_sample(sample, start_idx, end_idx):
     }
 
 
-def split_contents(content, begin, end, tokenizer, max_length):
+def split_contents(content, begin, end, tokenizer, max_length,
+                   split_from_speaker):
     """
     Keep the maximum round of conversations within the max token length constraint
     """
@@ -58,11 +58,15 @@ def split_contents(content, begin, end, tokenizer, max_length):
         num_tokens = 0
         start_idx = 0
         for idx, l in enumerate(tokenized_lens):
-            # TODO: shall we also only starts from a specific speaker?
             if num_tokens + l > max_length:
                 new_content.append(split_sample(sample, start_idx, idx))
                 start_idx = idx
                 num_tokens = l
+                if split_from_speaker:
+                    if sample["conversation"][start_idx]["from"] == "gpt":
+                        # Will begin in the next sentence
+                        start_idx += 1
+                        num_tokens = 0
             else:
                 num_tokens += l
                 if idx == len(tokenized_lens) - 1:
@@ -83,7 +87,7 @@ def main(args):
     if tokenizer.pad_token is None:
         tokenizer.add_special_tokens(dict(pad_token=DEFAULT_PAD_TOKEN))
     content = split_contents(content, args.begin, args.end,
-        tokenizer, args.max_length)
+        tokenizer, args.max_length, args.split_from_speaker)
     json.dump(content, open(args.out_file, "w"), indent=2)
 
 
@@ -95,5 +99,6 @@ if __name__ == "__main__":
     parser.add_argument("--end", type=int)
     parser.add_argument("--model-name-or-path", type=str, required=True)
     parser.add_argument("--max-length", type=int, default=3072)
+    parser.add_argument("--split-from-speaker", action="store_true")
     args = parser.parse_args()
     main(args)
