@@ -116,12 +116,17 @@ def load_demo(request: gr.Request):
     logger.info(f"load demo: {request.client.host}")
     models = get_model_list()
     state = default_conversation.copy()
-    return (state, gr.Dropdown.update(
+    return (state,
+            gr.Dropdown.update(
                choices=models,
                visible=True,
                value=models[0] if len(models) > 0 else ""),
             gr.Chatbot.update(visible=True),
             gr.Textbox.update(visible=True),
+            gr.Button.update(visible=True),
+            gr.Row.update(visible=True),
+            gr.Row.update(visible=True),
+            gr.Row.update(visible=True),
             gr.Row.update(visible=True),
             gr.Accordion.update(visible=True))
 
@@ -259,7 +264,6 @@ def http_bot(state, model_selector, temperature, max_new_tokens, request: gr.Req
 def build_demo():
     css = (
         """
-        #model_selector_row {width: 450px;}
         """ + code_highlight_css)
 
     with gr.Blocks(title="Chat Server", theme=gr.themes.Soft(), css=css) as demo:
@@ -271,52 +275,73 @@ def build_demo():
             ### Choose a model to chat with
             """
         )
-        state = gr.State()
-
-        with gr.Row(elem_id="model_selector_row"):
-            model_selector = gr.Dropdown(
-                interactive=True,
-                show_label=False).style(container=False)
+        max_num_model = 2
+        state = [gr.State(), gr.State()]
+        model_selector = [None] * max_num_model
+        chatbot = [None] * max_num_model
+        human_input = [None] * max_num_model
+        upvote_btn = [None] * max_num_model
+        downvote_btn = [None] * max_num_model
+        regenerate_btn = [None] * max_num_model
+        clear_btn = [None] * max_num_model
+        copy_btn = [None] * max_num_model
 
         with gr.Row():
             with gr.Column():
-                gr.Text("Chatbot 1")
-                chatbot = grChatbot(elem_id="chatbot1", visible=False).style(height=550)
+                model_selector[0] = gr.Dropdown(
+                    interactive=True,
+                    show_label=False)
             with gr.Column():
-                gr.Text("Chatbot 2")
-                chatbot2 = grChatbot(elem_id="chatbot2", visible=False).style(height=550)
-        textbox = gr.Textbox(show_label=False,
-            placeholder="Enter text and press ENTER", visible=False).style(container=False)
+                model_selector[1] = gr.Dropdown(
+                    interactive=True,
+                    placeholder="Add a model to compare with")
 
-        with gr.Row(visible=False) as button_row:
-            upvote_btn = gr.Button(value=upvote_msg)
-            downvote_btn = gr.Button(value=downvote_msg)
-            regenerate_btn = gr.Button(value="Regenerate")
-            clear_btn = gr.Button(value="Clear history")
+        with gr.Row():
+            for i in range(max_num_model):
+                with gr.Column():
+                    chatbot[i] = grChatbot(visible=False).style(height=550)
+
+        with gr.Row():
+            for i in range(max_num_model):
+                with gr.Column(scale=9, min_width=0):
+                    human_input[i] = gr.Textbox(show_label=False,
+                        placeholder="Enter text and press ENTER", visible=False)
+                with gr.Column(scale=1, min_width=0):
+                    copy_btn[i] = gr.Button(value="Copy", visible=False)
+
+        with gr.Row(visible=False):
+            for i in range(max_num_model):
+                upvote_btn[i] = gr.Button(value=upvote_msg)
+                downvote_btn[i] = gr.Button(value=downvote_msg)
+                regenerate_btn[i] = gr.Button(value="Regenerate")
+                clear_btn[i] = gr.Button(value="Clear history")
 
         with gr.Accordion("Parameters", open=False, visible=False) as parameter_row:
             temperature = gr.Slider(minimum=0.0, maximum=1.0, value=0.7, step=0.1, interactive=True, label="Temperature",)
             max_output_tokens = gr.Slider(minimum=0, maximum=1024, value=512, step=64, interactive=True, label="Max output tokens",)
 
-        upvote_btn.click(upvote_last_response,
-            [state, upvote_btn, downvote_btn, model_selector],
-            [upvote_btn, downvote_btn, textbox])
-        downvote_btn.click(downvote_last_response,
-            [state, upvote_btn, downvote_btn, model_selector],
-            [upvote_btn, downvote_btn, textbox])
-        regenerate_btn.click(regenerate, state,
-            [state, chatbot, textbox, upvote_btn, downvote_btn]).then(
-            http_bot, [state, model_selector, temperature, max_output_tokens],
-            [state, chatbot])
-        clear_btn.click(clear_history, None, [state, chatbot, textbox])
+        for i in range(max_num_model):
+            upvote_btn[i].click(upvote_last_response,
+                [state[i], upvote_btn[i], downvote_btn[i], model_selector[i]],
+                [upvote_btn[i], downvote_btn[i], human_input[i]])
+            downvote_btn[i].click(downvote_last_response,
+                [state[i], upvote_btn[i], downvote_btn[i], model_selector[i]],
+                [upvote_btn[i], downvote_btn[i], human_input[i]])
+            regenerate_btn[i].click(regenerate, state[i],
+                [state[i], chatbot[i], human_input[i], upvote_btn[i], downvote_btn[i]]).then(
+                http_bot, [state[i], model_selector[i], temperature, max_output_tokens],
+                [state[i], chatbot[i]])
+            clear_btn[i].click(clear_history, None, [state[i], chatbot[i], human_input[i]])
 
-        textbox.submit(add_text, [state, textbox],
-            [state, chatbot, textbox, upvote_btn, downvote_btn]).then(
-            http_bot, [state, model_selector, temperature, max_output_tokens],
-            [state, chatbot])
-
-        demo.load(load_demo, None, [state, model_selector,
-            chatbot, textbox, button_row, parameter_row])
+            human_input[i].submit(add_text, [state[i], human_input[i]],
+                [state[i], chatbot[i], human_input[i], upvote_btn[i], downvote_btn[i]]).then(
+                http_bot, [state[i], model_selector[i], temperature, max_output_tokens],
+                [state[i], chatbot[i]])
+    
+        demo.load(load_demo, None, 
+            [state[i], model_selector[i], chatbot[i], human_input[i], copy_btn[i],
+             upvote_btn[i], downvote_btn[i], regenerate_btn[i], clear_btn[i],
+             parameter_row])
 
     return demo
 
