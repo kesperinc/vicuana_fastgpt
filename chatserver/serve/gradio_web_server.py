@@ -278,7 +278,13 @@ def build_demo():
                 interactive=True,
                 show_label=False).style(container=False)
 
-        chatbot = grChatbot(elem_id="chatbot", visible=False).style(height=550)
+        with gr.Row():
+            with gr.Column():
+                gr.Text("Chatbot 1")
+                chatbot = grChatbot(elem_id="chatbot1", visible=False).style(height=550)
+            with gr.Column():
+                gr.Text("Chatbot 2")
+                chatbot2 = grChatbot(elem_id="chatbot2", visible=False).style(height=550)
         textbox = gr.Textbox(show_label=False,
             placeholder="Enter text and press ENTER", visible=False).style(container=False)
 
