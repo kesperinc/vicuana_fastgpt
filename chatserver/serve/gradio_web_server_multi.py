@@ -124,10 +124,10 @@ def load_demo(request: gr.Request):
             gr.Chatbot.update(visible=True),
             gr.Textbox.update(visible=True),
             gr.Button.update(visible=True),
-            gr.Row.update(visible=True),
-            gr.Row.update(visible=True),
-            gr.Row.update(visible=True),
-            gr.Row.update(visible=True),
+            gr.Button.update(visible=True),
+            gr.Button.update(visible=True),
+            gr.Button.update(visible=True),
+            gr.Button.update(visible=True),
             gr.Accordion.update(visible=True))
 
 
@@ -338,6 +338,7 @@ def build_demo():
             with gr.Column():
                 model_selector[1] = gr.Dropdown(
                     interactive=True,
+                    show_label=False,
                     placeholder="Add a model to compare with")
 
         with gr.Row():
@@ -353,12 +354,16 @@ def build_demo():
                 with gr.Column(scale=1, min_width=0):
                     broadcast_btn[i] = gr.Button(value="broadcast", visible=False)
 
-        with gr.Row(visible=False):
+        with gr.Row():
             for i in range(max_num_model):
-                upvote_btn[i] = gr.Button(value=upvote_msg)
-                downvote_btn[i] = gr.Button(value=downvote_msg)
-                regenerate_btn[i] = gr.Button(value="Regenerate")
-                clear_btn[i] = gr.Button(value="Clear history")
+                with gr.Column(scale=1, min_width=0):
+                    upvote_btn[i] = gr.Button(value=upvote_msg, visible=False)
+                with gr.Column(scale=1, min_width=0):
+                    downvote_btn[i] = gr.Button(value=downvote_msg, visible=False)
+                with gr.Column(scale=1, min_width=0):
+                    regenerate_btn[i] = gr.Button(value="Regenerate", visible=False)
+                with gr.Column(scale=1, min_width=0):
+                    clear_btn[i] = gr.Button(value="Clear history", visible=False)
 
         with gr.Accordion("Parameters", open=False, visible=False) as parameter_row:
             temperature = gr.Slider(minimum=0.0, maximum=1.0, value=0.7, step=0.1, interactive=True, label="Temperature",)
