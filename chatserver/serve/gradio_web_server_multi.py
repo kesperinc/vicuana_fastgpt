@@ -281,29 +281,28 @@ def http_bot(state, model_selector, temperature, max_new_tokens, request: gr.Req
 
 def http_bot_all(*args):
     max_num_model = (len(args) - 2) // 2
-    states = args[: max_num_model]
-    model_selectors = args[max_num_model : max_num_model * 2]
+    states = list(args[: max_num_model])
+    model_selectors = list(args[max_num_model : max_num_model * 2])
     temperature = args[max_num_model * 2]
     max_new_tokens = args[max_num_model * 2 + 1]
     assert max_num_model * 2 + 2 == len(args)
 
-    gen1 = http_bot(states[0], model_selectors[0], temperature, max_new_tokens, None)
-    gen2 = http_bot(states[1], model_selectors[1], temperature, max_new_tokens, None)
+    gen = []
+    for i in range(max_num_model):
+        gen.append(http_bot(states[i], model_selectors[i], temperature, max_new_tokens, None))
 
-    while gen1 and gen2:
-        state1, chatbot1 = next(gen1)
-        state2, chatbot2 = next(gen2)
-
-        yield state1, chatbot1, state2, chatbot2
-
-    while gen1:
-        state1, chatbot1 = next(gen1)
-        yield state1, chatbot1, state2, chatbot2
-
-    while gen2:
-        state2, chatbot2 = next(gen2)
-        yield state1, chatbot1, state2, chatbot2
-
+    chatbots = [None] * max_num_model
+    while True:
+        flag = False
+        for i in range(max_num_model):
+            print("!" * 20, i)
+            try:
+                states[i], chatbots[i] = next(gen[i])
+                flag = True
+            except StopIteration:
+                pass
+        yield states + chatbots
+        if not flag: return
 
 
 def build_demo():
