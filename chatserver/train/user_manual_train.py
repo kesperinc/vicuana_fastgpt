@@ -33,14 +33,14 @@ DEFAULT_BOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "</s>"
 PROMPT_DICT = {
     "prompt_input": (
-        "Below is a description that describes an issue of a product, paired with an input that provides further context. "
+        "Below is an instruction that describes a task, paired with an input that provides further context. "
         "Write a response that appropriately completes the request.\n\n"
         "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:"
     ),
     "prompt_no_input": (
-        "Below is a description that describes an issue of a product. "
-        "Provide a solution that can address the issue.\n\n"
-        "### Description:\n{title}\n\n### Solution:"
+        "Below is an issue about a product. "
+        "Provide a solution that appropriately addresses the issue.\n\n"
+        "### Issue:\n{issue}\n\n### Solution:"
     ),
 }
 
@@ -68,8 +68,10 @@ class TrainingArguments(transformers.TrainingArguments):
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
     """Collects the state dict and dump to disk."""
     state_dict = trainer.model.state_dict()
+    print("=== reach 1 ===")
     if trainer.args.should_save:
         cpu_state_dict = {key: value.cpu() for key, value in state_dict.items()}
+        print("123123")
         del state_dict
         trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
 
@@ -142,22 +144,27 @@ class SupervisedDataset(Dataset):
     def __init__(self, data_path: str, tokenizer: transformers.PreTrainedTokenizer):
         super(SupervisedDataset, self).__init__()
         logging.warning("Loading data...")
-        list_data_dict = utils.jload(data_path)
+        # list_data_dict = utils.jload(data_path)
+        list_data_dict = utils.load_user_manual(data_path)
 
-        print(f"##### list_data_dict: {list_data_dict[0]}...")
+        # print(f"##### list_data_dict: {list_data_dict[0]}...")
+
         logging.warning("Formatting inputs...")
         prompt_input, prompt_no_input = PROMPT_DICT["prompt_input"], PROMPT_DICT["prompt_no_input"]
         sources = [
             prompt_input.format_map(example) if example.get("input", "") != "" else prompt_no_input.format_map(example)
             for example in list_data_dict
         ]
-        targets = [f"{example['description']}{tokenizer.eos_token}" for example in list_data_dict]
-        print(f"##### sources: length {len(sources)}, {sources[0]}, targets: length {len(targets)},  {targets[0]}")
+        targets = [f"{example['solution']}{tokenizer.eos_token}" for example in list_data_dict]
+        # print(f"~~~~ sources: {sources[0]}")
+        # print(f"~~~~ targets: {targets[0]}")
         logging.warning("Tokenizing inputs... This may take some time...")
         data_dict = preprocess(sources, targets, tokenizer)
 
         self.input_ids = data_dict["input_ids"]
         self.labels = data_dict["labels"]
+        # print(f"input id: {self.input_ids[0]}, size: {self.input_ids[0].shape}, "
+        #       f"label id: {self.labels[0]}, size: {self.labels[0].shape}")
 
     def __len__(self):
         return len(self.input_ids)
@@ -225,10 +232,10 @@ def train():
 
     data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
     trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
-    exit(1)
     trainer.train()
     trainer.save_state()
-    safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir)
+    # print("=== 456 ===")
+    # safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir)
 
 
 if __name__ == "__main__":
